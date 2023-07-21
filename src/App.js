@@ -31,6 +31,8 @@ function App() {
   var twoWeeksAhead = new Date()
   twoWeeksAhead.setDate(currentDate.getDate() + 14)
 
+  // console.log(currentDate.toISOString() < twoWeeksAhead.toISOString());
+
   const currentDateString = parseDate(currentDate.toLocaleDateString());
   const twoWeeksAheadString = parseDate(twoWeeksAhead.toLocaleDateString());
 
@@ -38,9 +40,11 @@ function App() {
     const leagues_info = await Promise.all(leagueCodes.map(async (league) => {
       // const info = await axios.get("https://site.api.espn.com/apis/site/v2/sports/soccer/" + league + "/scoreboard");
       var info = await axios.get("https://site.api.espn.com/apis/site/v2/sports/soccer/" + league + "/scoreboard?dates=" + currentDateString + "-" + twoWeeksAheadString + "&limit=300");
+      var dateInfo = await axios.get("https://site.api.espn.com/apis/site/v2/sports/soccer/" + league + "/scoreboard");
       if (info.data.events.length === 0) {
         info.winner_info = await axios.get("https://site.api.espn.com/apis/v2/sports/soccer/" + league + "/standings?season=2022");
       }
+      info.start_date = dateInfo.data.leagues[0].calendar[1];
       return info;
     }));
     return leagues_info;
@@ -52,15 +56,15 @@ function App() {
     const data = await getData();
     // console.log(data);
     data.forEach(item => {
-      leaguesArray.push({ league_name: item.data.leagues[0].name, logo: item.data.leagues[0].logos[0].href, events: item.data.events, winnerInfo: (item.winner_info ? item.winner_info : null) });
+      leaguesArray.push({ start_date: item.start_date, league_name: item.data.leagues[0].name, logo: item.data.leagues[0].logos[0].href, events: item.data.events, winnerInfo: (item.winner_info ? item.winner_info : null) });
       setLeagueInfo(leaguesArray);
-      // setLeagueInfo(leagueInfo => [...leagueInfo, {league_name: item.data.leagues[0].name, events: item.data.events}]);
     })
   };
 
   useEffect(() => {
     displayData();
     console.log(leaguesArray);
+    // console.log(leagueInfo);
   }, []);
 
   return (
@@ -87,18 +91,24 @@ function App() {
                 <img src={item.logo} alt="image" style={{ width: 100, height: 100 }}></img>
                 <h2> {item.league_name} </h2>
               </div>
-              {item.events.length === 0 ?
+              {item.events.length === 0 && currentDate.toISOString() < item.start_date ?
                 <div>
                   <h4>Winner: {item.winnerInfo.data.children[0].standings.entries[0].team.displayName}</h4>
                 </div> :
-                <div>
-                  {item.events.map(event => (
-                    <div>
-                      <h4>{event.name}</h4>
-                      <h5>On {event.date.slice(0, 10)}</h5>
-                    </div>
-                  ))}
-                </div>
+                item.events.length === 0 ?
+                  <div>
+                    <h4>No matches scheduled</h4>
+                  </div> :
+                  // else
+                  <div>
+                    {item.events.map(event => (
+                      <div>
+                        <h4>{event.name}</h4>
+                        <h5>On {event.date.slice(0, 10)}</h5>
+                      </div>
+                    ))}
+                  </div>
+                //
               }
             </div>
           ))}
